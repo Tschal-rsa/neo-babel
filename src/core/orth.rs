@@ -39,7 +39,7 @@ pub fn interpret(string: &str) -> String {
     };
     let string = COMBINATION.replace_all(string, repl_closure);
     let string = COMMAND.replace_all(&string, repl_closure);
-    String::from(string)
+    string.into_owned()
 }
 
 #[cfg(test)]

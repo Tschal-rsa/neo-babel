@@ -5,5 +5,6 @@ mod core;
 mod cli;
 
 fn main() {
-    cli::mainloop().unwrap();
+    let mut interface = cli::Cli::new();
+    interface.mainloop();
 }
