@@ -62,12 +62,21 @@ impl Babel {
         Babel::template_at(&self.language, idx)
     }
 
-    fn lang_at_mut(&mut self, idx: usize) -> Result<&mut Language, BabelError> {
+    pub fn lang_at_mut(&mut self, idx: usize) -> Result<&mut Language, BabelError> {
         Babel::template_at_mut(&mut self.language, idx)
     }
 
     pub fn pos_at(&self, idx: usize) -> Result<&PoS, BabelError> {
         Babel::template_at(&self.pos, idx)
+    }
+
+    pub fn abbr_to_idx(&self, abbr: &str) -> Option<usize> {
+        for (i, pos) in self.pos.iter().enumerate() {
+            if pos.abbr() == abbr {
+                return Some(i);
+            }
+        }
+        None
     }
 
     pub fn add_lang(&mut self, item: Language) -> Result<(), BabelError> {
@@ -114,38 +123,38 @@ impl Babel {
         Ok(())
     }
 
-    pub fn add_m2w(&mut self, lang: usize, item: Replace) -> Result<(), BabelError> {
-        let lang = self.lang_at_mut(lang)?;
-        lang.append_mnemonic_to_word(item);
-        Ok(())
-    }
+    // pub fn add_m2w(&mut self, lang: usize, item: Replace) -> Result<(), BabelError> {
+    //     let lang = self.lang_at_mut(lang)?;
+    //     lang.append_mnemonic_to_word(item);
+    //     Ok(())
+    // }
 
-    pub fn alt_m2w(&mut self, lang: usize, idx: usize, item: Replace) -> Result<(), BabelError> {
-        let lang = self.lang_at_mut(lang)?;
-        if idx >= lang.mnemonic_to_word().len() {
-            return Err(BabelError::IndexOutOfRange);
-        }
-        lang.update_mnemonic_to_word(idx, item);
-        Ok(())
-    }
+    // pub fn alt_m2w(&mut self, lang: usize, idx: usize, item: Replace) -> Result<(), BabelError> {
+    //     let lang = self.lang_at_mut(lang)?;
+    //     if idx >= lang.mnemonic_to_word().len() {
+    //         return Err(BabelError::IndexOutOfRange);
+    //     }
+    //     lang.update_mnemonic_to_word(idx, item);
+    //     Ok(())
+    // }
 
-    pub fn ins_m2w(&mut self, lang: usize, idx: usize, item: Replace) -> Result<(), BabelError> {
-        let lang = self.lang_at_mut(lang)?;
-        if idx > lang.mnemonic_to_word().len() {
-            return Err(BabelError::IndexOutOfRange);
-        }
-        lang.insert_mnemonic_to_word(idx, item);
-        Ok(())
-    }
+    // pub fn ins_m2w(&mut self, lang: usize, idx: usize, item: Replace) -> Result<(), BabelError> {
+    //     let lang = self.lang_at_mut(lang)?;
+    //     if idx > lang.mnemonic_to_word().len() {
+    //         return Err(BabelError::IndexOutOfRange);
+    //     }
+    //     lang.insert_mnemonic_to_word(idx, item);
+    //     Ok(())
+    // }
 
-    pub fn rm_m2w(&mut self, lang: usize, idx: usize) -> Result<(), BabelError> {
-        let lang = self.lang_at_mut(lang)?;
-        if idx >= lang.mnemonic_to_word().len() {
-            return Err(BabelError::IndexOutOfRange);
-        }
-        lang.remove_mnemonic_to_word(idx);
-        Ok(())
-    }
+    // pub fn rm_m2w(&mut self, lang: usize, idx: usize) -> Result<(), BabelError> {
+    //     let lang = self.lang_at_mut(lang)?;
+    //     if idx >= lang.mnemonic_to_word().len() {
+    //         return Err(BabelError::IndexOutOfRange);
+    //     }
+    //     lang.remove_mnemonic_to_word(idx);
+    //     Ok(())
+    // }
 
     fn template_add<T: Valid>(seq: &mut Vec<T>, item: T) -> Result<(), BabelError> {
         if !item.is_alive() {
