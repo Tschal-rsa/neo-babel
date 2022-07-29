@@ -87,9 +87,9 @@ impl Babel {
         Babel::template_add(&mut self.pos, item)
     }
 
-    pub fn alt_lang(&mut self, idx: usize, item: Language) -> Result<(), BabelError> {
-        Babel::template_alt(&mut self.language, idx, item)
-    }
+    // pub fn alt_lang(&mut self, idx: usize, item: Language) -> Result<(), BabelError> {
+    //     Babel::template_alt(&mut self.language, idx, item)
+    // }
 
     pub fn alt_pos(&mut self, idx: usize, item: PoS) -> Result<(), BabelError> {
         Babel::template_alt(&mut self.pos, idx, item)

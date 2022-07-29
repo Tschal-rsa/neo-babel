@@ -93,8 +93,7 @@ impl Cli {
 
     fn build_new_lang(&self) -> io::Result<Language> {
         let name = Cli::fetch("name")?;
-        let ancestor = self.babel.lang().len();
-        Ok(Language::new(&name, ancestor))
+        Ok(Language::new(&name))
     }
 
     // fn build_lang() -> Result<Language, Box<dyn Error>> {
@@ -103,10 +102,10 @@ impl Cli {
     //     Ok(Language::new(&name, ancestor))
     // }
 
-    fn update_lang(old: &Language) -> Result<Language, Box<dyn Error>> {
+    fn update_lang(old: &mut Language) -> io::Result<()> {
         let name = Cli::fetch_or("name", old.name())?;
-        let ancestor = Cli::fetch_idx_or("ancestor's index", old.ancestor())?;
-        Ok(Language::new(&name, ancestor))
+        old.change_name(&name);
+        Ok(())
     }
 
     fn build_pos() -> io::Result<PoS> {
@@ -208,9 +207,8 @@ impl Cli {
 
     fn execute_alt_lang(&mut self) -> Result<(), Box<dyn Error>> {
         let idx = Cli::fetch_idx("index")?;
-        let old = self.babel.lang_at(idx)?;
-        let item = Cli::update_lang(old)?;
-        self.babel.alt_lang(idx, item)?;
+        let old = self.babel.lang_at_mut(idx)?;
+        Cli::update_lang(old)?;
         self.modify();
         self.cur_lang = Some(idx);
         Ok(())
@@ -229,7 +227,7 @@ impl Cli {
         let idx = Cli::fetch_idx("index")?;
         let lang = self.babel.lang_at(idx)?;
         self.cur_lang = Some(idx);
-        println!("{}. {}({})", idx, lang.name(), lang.ancestor());
+        println!("{}. {}({})", idx, lang.name(), lang.display_ancestor());
         Ok(())
     }
 
@@ -255,7 +253,7 @@ impl Cli {
 
     fn execute_ls_lang(&self) {
         for (i, lang) in self.babel.enum_lang() {
-            println!("{}. {}({})", i, lang.name(), lang.ancestor());
+            println!("{}. {}({})", i, lang.name(), lang.display_ancestor());
         }
     }
 
@@ -275,7 +273,7 @@ impl Cli {
 
     fn execute_pwd(&self) -> Result<(), Box<dyn Error>> {
         let lang = self.cur_lang()?;
-        println!("{}. {}({})", self.cur_lang.unwrap(), lang.name(), lang.ancestor());
+        println!("{}. {}({})", self.cur_lang.unwrap(), lang.name(), lang.display_ancestor());
         Ok(())
     }
 

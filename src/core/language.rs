@@ -50,17 +50,17 @@ impl Substitute {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Language {
     name: String,
-    ancestor: usize,
+    ancestor: Option<usize>,
     vocab: Vec<Word>,
     mnemonic_to_word: Vec<Replace>,
     mnemonic_to_upa: Vec<Replace>,
 }
 
 impl Language {
-    pub fn new(name: &str, ancestor: usize) -> Language {
+    pub fn new(name: &str) -> Language {
         Language {
             name: name.to_string(),
-            ancestor,
+            ancestor: None,
             vocab: Vec::new(),
             mnemonic_to_word: Vec::new(),
             mnemonic_to_upa: Vec::new(),
@@ -71,8 +71,19 @@ impl Language {
         &self.name
     }
 
-    pub fn ancestor(&self) -> usize {
+    pub fn change_name(&mut self, name: &str) {
+        self.name = name.to_owned();
+    }
+
+    pub fn ancestor(&self) -> Option<usize> {
         self.ancestor
+    }
+
+    pub fn display_ancestor(&self) -> String {
+        match self.ancestor {
+            Some(ancestor) => ancestor.to_string(),
+            None => String::from("root")
+        }
     }
 
     pub fn mnemonic_to_word(&self) -> &Vec<Replace> {
@@ -166,7 +177,7 @@ impl Language {
 impl Valid for Language {
     fn destroy(&mut self) {
         self.name.clear();
-        self.ancestor = usize::MAX;
+        self.ancestor = None;
     }
 
     fn is_alive(&self) -> bool {
