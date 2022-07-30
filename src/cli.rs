@@ -11,6 +11,7 @@ use std::io;
 pub enum CliError {
     LanguageInvalid,
     Modified,
+    UnknownCommand,
 }
 
 impl Display for CliError {
@@ -18,6 +19,7 @@ impl Display for CliError {
         match self {
             CliError::LanguageInvalid => write!(f, "You should create a language first."),
             CliError::Modified => write!(f, "You should save first."),
+            CliError::UnknownCommand => write!(f, "Unknown command."),
         }
     }
 }
@@ -227,7 +229,7 @@ impl Cli {
         let idx = Cli::fetch_idx("index")?;
         let lang = self.babel.lang_at(idx)?;
         self.cur_lang = Some(idx);
-        println!("{}. {}({})", idx, lang.name(), lang.display_ancestor());
+        println!("{}. {}", idx, self.babel.summarize_lang(lang));
         Ok(())
     }
 
@@ -253,7 +255,7 @@ impl Cli {
 
     fn execute_ls_lang(&self) {
         for (i, lang) in self.babel.enum_lang() {
-            println!("{}. {}({})", i, lang.name(), lang.display_ancestor());
+            println!("{}. {}", i, self.babel.summarize_lang(lang));
         }
     }
 
@@ -273,7 +275,7 @@ impl Cli {
 
     fn execute_pwd(&self) -> Result<(), Box<dyn Error>> {
         let lang = self.cur_lang()?;
-        println!("{}. {}({})", self.cur_lang.unwrap(), lang.name(), lang.display_ancestor());
+        println!("{}. {}", self.cur_lang.unwrap(), self.babel.summarize_lang(lang));
         Ok(())
     }
 
@@ -310,12 +312,12 @@ impl Cli {
                 "m2w" => self.execute_add_m2w()?,
                 "pos" => self.execute_add_pos()?,
                 "word" => self.execute_add_word()?,
-                _ => println!("Unknown command")
+                _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "alt" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_alt_lang()?,
                 "pos" => self.execute_alt_pos()?,
-                _ => println!("Unknown command")
+                _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "cd" => self.execute_cd()?,
             "dbg" => self.execute_debug(),
@@ -330,17 +332,17 @@ impl Cli {
                 "lang" => self.execute_ls_lang(),
                 "m2w" => self.execute_ls_m2w()?,
                 "pos" => self.execute_ls_pos(),
-                _ => println!("Unknown command")
+                _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "pwd" => self.execute_pwd()?,
             "rm" | "del" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_rm_lang()?,
                 "pos" => self.execute_rm_pos()?,
-                _ => println!("Unknown command")
+                _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "save" => self.execute_save(iter.next().unwrap_or("project/example.json"))?,
             "" => (),
-            _ => println!("Unknown command")
+            _ => return Err(Box::new(CliError::UnknownCommand))
         }
         Ok(true)
     }
@@ -354,5 +356,18 @@ impl Cli {
             }
             eprintln!("");
         }
+    }
+}
+
+impl Babel {
+    fn summarize_lang(&self, lang: &Language) -> String {
+        format!("{}({})", lang.name(), match lang.ancestor() {
+            Some(ancestor) => ancestor.to_string(),
+            None => String::from("root")
+        })
+    }
+
+    fn summarize_word(&self, word: &Word) -> String {
+        format!("{:10}{:5}{:20}", word.conlang(), word.pos(), word.natlang())
     }
 }

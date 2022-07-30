@@ -45,6 +45,18 @@ impl Word {
         }
     }
 
+    pub fn conlang(&self) -> &str {
+        &self.conlang
+    }
+
+    pub fn natlang(&self) -> &str {
+        &self.natlang
+    }
+
+    pub fn pos(&self) -> usize {
+        self.pos
+    }
+
     pub fn morph(&mut self, m2w: &Vec<Substitute>, m2u: &Vec<Substitute>) {
         let mut conlang = self.mnemonic.to_owned();
         for sub in m2w {

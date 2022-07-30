@@ -79,13 +79,6 @@ impl Language {
         self.ancestor
     }
 
-    pub fn display_ancestor(&self) -> String {
-        match self.ancestor {
-            Some(ancestor) => ancestor.to_string(),
-            None => String::from("root")
-        }
-    }
-
     pub fn mnemonic_to_word(&self) -> &Vec<Replace> {
         &self.mnemonic_to_word
     }
