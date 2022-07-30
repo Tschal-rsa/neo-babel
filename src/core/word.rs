@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 // use serde_json::Result as JsonResult;
 // use regex::Regex;
 use super::language::Substitute;
-use super::Valid;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
 pub struct Coordinate {
@@ -114,18 +113,18 @@ impl Word {
     // }
 }
 
-impl Valid for Word {
-    fn destroy(&mut self) {
-        self.conlang.clear();
-        self.natlang.clear();
-        self.pos = usize::MAX;
-        self.upa.clear();
-        self.mnemonic.clear();
-        self.ancestor.clear();
-        self.info.clear();
-    }
+// impl Valid for Word {
+//     fn destroy(&mut self) {
+//         self.conlang.clear();
+//         self.natlang.clear();
+//         self.pos = usize::MAX;
+//         self.upa.clear();
+//         self.mnemonic.clear();
+//         self.ancestor.clear();
+//         self.info.clear();
+//     }
 
-    fn is_alive(&self) -> bool {
-        !self.conlang.is_empty()
-    }
-}
+//     fn is_alive(&self) -> bool {
+//         !self.conlang.is_empty()
+//     }
+// }

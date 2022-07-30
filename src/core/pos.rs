@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 // use serde_json::Result as JsonResult;
-use super::Valid;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct PoS {
@@ -22,13 +21,13 @@ impl PoS {
     }
 }
 
-impl Valid for PoS {
-    fn destroy(&mut self) {
-        self.name.clear();
-        self.abbr.clear();
-    }
+// impl Valid for PoS {
+//     fn destroy(&mut self) {
+//         self.name.clear();
+//         self.abbr.clear();
+//     }
 
-    fn is_alive(&self) -> bool {
-        !self.name.is_empty()
-    }
-}
+//     fn is_alive(&self) -> bool {
+//         !self.name.is_empty()
+//     }
+// }

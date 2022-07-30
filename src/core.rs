@@ -12,24 +12,26 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::fs::File;
 
-trait Valid {
-    fn destroy(&mut self);
-    fn is_alive(&self) -> bool;
-}
+// trait Valid {
+//     fn destroy(&mut self);
+//     fn is_alive(&self) -> bool;
+// }
 
 #[derive(Debug)]
 pub enum BabelError {
-    AdditionRejected,
-    AlterationRejected,
+    // AdditionRejected,
+    // AlterationRejected,
     IndexOutOfRange,
+    InvalidElement,
 }
 
 impl Display for BabelError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            BabelError::AdditionRejected => write!(f, "Addition is rejected."),
-            BabelError::AlterationRejected => write!(f, "Alteration is rejected."),
+            // BabelError::AdditionRejected => write!(f, "Addition is rejected."),
+            // BabelError::AlterationRejected => write!(f, "Alteration is rejected."),
             BabelError::IndexOutOfRange => write!(f, "Index out of range!"),
+            BabelError::InvalidElement => write!(f, "Invalid element!"),
         }
     }
 }
@@ -38,8 +40,8 @@ impl Error for BabelError {}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Babel {
-    language: Vec<Language>,
-    pos: Vec<PoS>,
+    language: Vec<Option<Language>>,
+    pos: Vec<Option<PoS>>,
 }
 
 impl Babel {
@@ -50,11 +52,11 @@ impl Babel {
         }
     }
 
-    pub fn lang(&self) -> &Vec<Language> {
+    pub fn lang(&self) -> &Vec<Option<Language>> {
         &self.language
     }
 
-    pub fn pos(&self) -> &Vec<PoS> {
+    pub fn pos(&self) -> &Vec<Option<PoS>> {
         &self.pos
     }
 
@@ -71,7 +73,7 @@ impl Babel {
     }
 
     pub fn abbr_to_idx(&self, abbr: &str) -> Option<usize> {
-        for (i, pos) in self.pos.iter().enumerate() {
+        for (i, pos) in self.enum_pos() {
             if pos.abbr() == abbr {
                 return Some(i);
             }
@@ -79,17 +81,21 @@ impl Babel {
         None
     }
 
-    pub fn add_lang(&mut self, item: Language) -> Result<(), BabelError> {
-        Babel::template_add(&mut self.language, item)
+    pub fn add_lang(&mut self, item: Language) {
+        Babel::template_add(&mut self.language, item);
     }
 
-    pub fn add_pos(&mut self, item: PoS) -> Result<(), BabelError> {
-        Babel::template_add(&mut self.pos, item)
+    pub fn add_pos(&mut self, item: PoS) {
+        Babel::template_add(&mut self.pos, item);
     }
 
     // pub fn alt_lang(&mut self, idx: usize, item: Language) -> Result<(), BabelError> {
     //     Babel::template_alt(&mut self.language, idx, item)
     // }
+
+    pub fn rst_lang(&mut self, idx: usize, item: Language) -> Result<(), BabelError> {
+        Babel::template_alt(&mut self.language, idx, item)
+    }
 
     pub fn alt_pos(&mut self, idx: usize, item: PoS) -> Result<(), BabelError> {
         Babel::template_alt(&mut self.pos, idx, item)
@@ -156,40 +162,40 @@ impl Babel {
     //     Ok(())
     // }
 
-    fn template_add<T: Valid>(seq: &mut Vec<T>, item: T) -> Result<(), BabelError> {
-        if !item.is_alive() {
-            return Err(BabelError::AdditionRejected);
-        }
-        seq.push(item);
-        Ok(())
+    fn template_add<T>(seq: &mut Vec<Option<T>>, item: T) {
+        seq.push(Some(item))
     }
 
-    fn template_alt<T: Valid>(seq: &mut Vec<T>, idx: usize, item: T) -> Result<(), BabelError> {
-        if !item.is_alive() {
-            return Err(BabelError::AlterationRejected);
-        }
+    fn template_alt<T>(seq: &mut Vec<Option<T>>, idx: usize, item: T) -> Result<(), BabelError> {
         let old_item = seq.get_mut(idx).ok_or(BabelError::IndexOutOfRange)?;
-        *old_item = item;
+        *old_item = Some(item);
         Ok(())
     }
 
-    fn template_at<T>(seq: &Vec<T>, idx: usize) -> Result<&T, BabelError> {
+    fn template_at<T>(seq: &Vec<Option<T>>, idx: usize) -> Result<&T, BabelError> {
         let item = seq.get(idx).ok_or(BabelError::IndexOutOfRange)?;
+        let item = item.as_ref().ok_or(BabelError::InvalidElement)?;
         Ok(item)
     }
 
-    fn template_at_mut<T>(seq: &mut Vec<T>, idx: usize) -> Result<&mut T, BabelError> {
+    fn template_at_mut<T>(seq: &mut Vec<Option<T>>, idx: usize) -> Result<&mut T, BabelError> {
         let item = seq.get_mut(idx).ok_or(BabelError::IndexOutOfRange)?;
+        let item = item.as_mut().ok_or(BabelError::InvalidElement)?;
         Ok(item)
     }
 
-    fn template_enum<T: Valid>(seq: &Vec<T>) -> impl Iterator<Item = (usize, &T)> {
-        seq.iter().enumerate().filter(|&(_, x)| x.is_alive())
+    fn template_enum<T>(seq: &Vec<Option<T>>) -> impl Iterator<Item = (usize, &T)> {
+        seq.iter().enumerate().filter_map(|(idx, item)| {
+            match item.as_ref() {
+                Some(x) => Some((idx, x)),
+                None => None
+            }
+        })
     }
 
-    fn template_rm<T: Valid>(seq: &mut Vec<T>, idx: usize) -> Result<(), BabelError> {
+    fn template_rm<T>(seq: &mut Vec<Option<T>>, idx: usize) -> Result<(), BabelError> {
         let old_item = seq.get_mut(idx).ok_or(BabelError::IndexOutOfRange)?;
-        old_item.destroy();
+        *old_item = None;
         Ok(())
     }
 }

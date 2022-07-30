@@ -177,9 +177,9 @@ impl Cli {
         }
     }
 
-    fn execute_add_lang(&mut self) -> Result<(), Box<dyn Error>> {
+    fn execute_add_lang(&mut self) -> io::Result<()> {
         let item = self.build_new_lang()?;
-        self.babel.add_lang(item)?;
+        self.babel.add_lang(item);
         self.modify();
         self.cur_lang = Some(self.babel.lang().len() - 1);
         Ok(())
@@ -193,9 +193,9 @@ impl Cli {
         Ok(())
     }
 
-    fn execute_add_pos(&mut self) -> Result<(), Box<dyn Error>> {
+    fn execute_add_pos(&mut self) -> io::Result<()> {
         let item = Cli::build_pos()?;
-        self.babel.add_pos(item)?;
+        self.babel.add_pos(item);
         self.modify();
         Ok(())
     }
@@ -296,6 +296,23 @@ impl Cli {
         Ok(())
     }
 
+    fn execute_rst_lang(&mut self) -> Result<(), Box<dyn Error>> {
+        let idx = Cli::fetch_idx("index")?;
+        let item = self.build_new_lang()?;
+        self.babel.rst_lang(idx, item)?;
+        self.modify();
+        self.cur_lang = Some(idx);
+        Ok(())
+    }
+
+    fn execute_rst_pos(&mut self) -> Result<(), Box<dyn Error>> {
+        let idx = Cli::fetch_idx("index")?;
+        let item = Cli::build_pos()?;
+        self.babel.alt_pos(idx, item)?;
+        self.modify();
+        Ok(())
+    }
+
     fn execute_save(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
         self.babel.save(path)?;
         self.modified = false;
@@ -338,6 +355,11 @@ impl Cli {
             "rm" | "del" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_rm_lang()?,
                 "pos" => self.execute_rm_pos()?,
+                _ => return Err(Box::new(CliError::UnknownCommand))
+            }
+            "rst" => match iter.next().unwrap_or("") {
+                "lang" => self.execute_rst_lang()?,
+                "pos" => self.execute_rst_pos()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "save" => self.execute_save(iter.next().unwrap_or("project/example.json"))?,

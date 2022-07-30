@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 // use serde_json::Result as JsonResult;
 use regex::{self, Regex};
-use super::{BabelError, Valid};
+use super::BabelError;
 use super::word::Word;
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -51,7 +51,7 @@ impl Substitute {
 pub struct Language {
     name: String,
     ancestor: Option<usize>,
-    vocab: Vec<Word>,
+    vocab: Vec<Option<Word>>,
     mnemonic_to_word: Vec<Replace>,
     mnemonic_to_upa: Vec<Replace>,
 }
@@ -95,7 +95,7 @@ impl Language {
         let m2w = self.make_m2w();
         let m2u = self.make_m2u();
         word.morph(&m2w, &m2u);
-        self.vocab.push(word);
+        self.vocab.push(Some(word));
     }
 
     pub fn add_m2w(&mut self, item: Replace) {
@@ -167,13 +167,13 @@ impl Language {
     // }
 }
 
-impl Valid for Language {
-    fn destroy(&mut self) {
-        self.name.clear();
-        self.ancestor = None;
-    }
+// impl Valid for Language {
+//     fn destroy(&mut self) {
+//         self.name.clear();
+//         self.ancestor = None;
+//     }
 
-    fn is_alive(&self) -> bool {
-        !self.name.is_empty()
-    }
-}
+//     fn is_alive(&self) -> bool {
+//         !self.name.is_empty()
+//     }
+// }
