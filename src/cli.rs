@@ -123,8 +123,10 @@ impl Cli {
     }
 
     fn build_replace() -> Result<Replace, Box<dyn Error>> {
-        let pat = Cli::fetch("pattern")?;
-        let repl = Cli::fetch("repl")?;
+        let pat = orth::interpret(&Cli::fetch("pattern")?);
+        Cli::promptln("pattern", &pat);
+        let repl = orth::interpret(&Cli::fetch("repl")?);
+        Cli::promptln("repl", &repl);
         let rule = Replace::new(&pat, &repl)?;
         Ok(rule)
     }
@@ -182,6 +184,14 @@ impl Cli {
         self.babel.add_lang(item);
         self.modify();
         self.cur_lang = Some(self.babel.lang().len() - 1);
+        Ok(())
+    }
+
+    fn execute_add_m2u(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang_mut()?;
+        let item = Cli::build_replace()?;
+        lang.add_m2u(item);
+        self.modify();
         Ok(())
     }
 
@@ -326,6 +336,7 @@ impl Cli {
         match iter.next().unwrap_or("") {
             "add" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_add_lang()?,
+                "m2u" => self.execute_add_m2u()?,
                 "m2w" => self.execute_add_m2w()?,
                 "pos" => self.execute_add_pos()?,
                 "word" => self.execute_add_word()?,

@@ -102,6 +102,10 @@ impl Language {
         Language::template_add(&mut self.mnemonic_to_word, item);
     }
 
+    pub fn add_m2u(&mut self, item: Replace) {
+        Language::template_add(&mut self.mnemonic_to_upa, item);
+    }
+
     pub fn alt_m2w(&mut self, idx: usize, item: Replace) -> Result<(), BabelError> {
         Language::template_alt(&mut self.mnemonic_to_word, idx, item)
     }
