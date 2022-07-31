@@ -65,8 +65,16 @@ impl Word {
         self.pos
     }
 
+    pub fn mnemonic(&self) -> &str {
+        &self.mnemonic
+    }
+
     pub fn ancestor(&self) -> &Vec<Coordinate> {
         &self.ancestor
+    }
+
+    pub fn info(&self) -> &str {
+        &self.info
     }
 
     fn replace_all(re: &Regex, text: &str, rep: &str) -> String {
@@ -74,7 +82,7 @@ impl Word {
         loop {
             match re.replace_all(&text, rep) {
                 Cow::Borrowed(_) => break text,
-                owned => text = owned.into_owned(),
+                Cow::Owned(s) => text = s,
             }
         }
     }

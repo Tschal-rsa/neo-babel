@@ -195,6 +195,14 @@ impl Language {
         &self.mnemonic_transform
     }
 
+    pub fn word_at(&self, idx: usize) -> Result<&Word, BabelError> {
+        Babel::template_at(&self.vocab, idx)
+    }
+
+    pub fn word_at_mut(&mut self, idx: usize) -> Result<&mut Word, BabelError> {
+        Babel::template_at_mut(&mut self.vocab, idx)
+    }
+
     fn make_m2w(&self) -> Vec<Substitute> {
         self.mnemonic_to_word.iter().map(|x| Substitute::from(x)).collect()
     }
@@ -232,6 +240,13 @@ impl Language {
 
     pub fn alt_m2w(&mut self, idx: usize, item: Replace) -> Result<(), BabelError> {
         Language::template_alt(&mut self.mnemonic_to_word, idx, item)
+    }
+
+    pub fn alt_word(&mut self, idx: usize, mut item: Word) -> Result<(), BabelError> {
+        let m2w = self.make_m2w();
+        let m2u = self.make_m2u();
+        item.morph(&m2w, &m2u);
+        Babel::template_alt(&mut self.vocab, idx, item)
     }
 
     pub fn drv(&mut self, ancestor_idx: usize, ancestor: &Language) -> Result<(), BabelError> {
@@ -276,6 +291,10 @@ impl Language {
 
     pub fn rm_m2w(&mut self, idx: usize) -> Result<(), BabelError> {
         Language::template_rm(&mut self.mnemonic_to_word, idx)
+    }
+
+    pub fn rm_word(&mut self, idx: usize) -> Result<(), BabelError> {
+        Babel::template_rm(&mut self.vocab, idx)
     }
 
     fn template_add<T>(seq: &mut Vec<T>, item: T) {

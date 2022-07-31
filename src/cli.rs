@@ -88,6 +88,17 @@ impl Cli {
         })
     }
 
+    fn fetch_int_or(prompt: &str, default: &str) -> io::Result<String> {
+        Cli::promptln(prompt, &format!("(old) {}", default));
+        Cli::fetch_int(prompt).map(|x| {
+            if x.is_empty() {
+                default.to_string()
+            } else {
+                x
+            }
+        })
+    }
+
     fn fetch_idx(prompt: &str) -> Result<usize, Box<dyn Error>> {
         let idx: usize = Cli::fetch(prompt)?.parse()?;
         Ok(idx)
@@ -164,6 +175,20 @@ impl Cli {
             }
         };
         let info = Cli::fetch("info")?;
+        Ok(Word::shell(&mnemonic, &natlang, pos, &info))
+    }
+
+    fn update_word(&self, old: &Word) -> Result<Word, Box<dyn Error>> {
+        let mnemonic = Cli::fetch_int_or("mnemonic", old.mnemonic())?;
+        let natlang = Cli::fetch_or("natlang", old.natlang())?;
+        let old_pos = self.babel.pos_at(old.pos())?.abbr();
+        let pos = loop {
+            let abbr = Cli::fetch_or("pos", old_pos)?;
+            if let Some(idx) = self.babel.abbr_to_idx(&abbr) {
+                break idx;
+            }
+        };
+        let info = Cli::fetch_or("info", old.info())?;
         Ok(Word::shell(&mnemonic, &natlang, pos, &info))
     }
 
@@ -268,6 +293,16 @@ impl Cli {
         Ok(())
     }
 
+    fn execute_alt_word(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang()?;
+        let idx = Cli::fetch_idx("index")?;
+        let old = lang.word_at(idx)?;
+        let item = self.update_word(old)?;
+        self.cur_lang_mut()?.alt_word(idx, item)?;
+        self.modify();
+        Ok(())
+    }
+
     fn execute_cd(&mut self) -> Result<(), Box<dyn Error>> {
         let idx = Cli::fetch_idx("index")?;
         let lang = self.babel.lang_at(idx)?;
@@ -308,8 +343,11 @@ impl Cli {
         self.babel = neo_babel;
         if self.babel.lang().len() > 0 {
             self.cur_lang = Some(0);
+            let lang = self.cur_lang()?;
+            println!("0. {}", self.babel.summarize_lang(lang));
+        } else {
+            println!("Loaded!");
         }
-        println!("Loaded!");
         Ok(())
     }
 
@@ -364,6 +402,13 @@ impl Cli {
         Ok(())
     }
 
+    fn execute_rm_word(&mut self) -> Result<(), Box<dyn Error>> {
+        let idx = Cli::fetch_idx("index")?;
+        self.cur_lang_mut()?.rm_word(idx)?;
+        self.modify();
+        Ok(())
+    }
+
     fn execute_rst_lang(&mut self) -> Result<(), Box<dyn Error>> {
         let idx = Cli::fetch_idx("index")?;
         let item = self.build_new_lang()?;
@@ -377,6 +422,14 @@ impl Cli {
         let idx = Cli::fetch_idx("index")?;
         let item = Cli::build_pos()?;
         self.babel.alt_pos(idx, item)?;
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_rst_word(&mut self) -> Result<(), Box<dyn Error>> {
+        let idx = Cli::fetch_idx("index")?;
+        let item = self.build_word()?;
+        self.cur_lang_mut()?.alt_word(idx, item)?;
         self.modify();
         Ok(())
     }
@@ -405,16 +458,17 @@ impl Cli {
             "alt" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_alt_lang()?,
                 "pos" => self.execute_alt_pos()?,
+                "word" => self.execute_alt_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "cd" => self.execute_cd()?,
             "dbg" => self.execute_debug()?,
             "drv" => self.execute_derive()?,
-            "exit" | ";" => {
+            "q" | ";" => {
                 self.check_modified()?;
                 return Ok(false);
             }
-            "!" => return Ok(false),
+            "q!" => return Ok(false),
             "int" => Cli::execute_int(iter.next().unwrap_or("")),
             "load" => self.execute_load(iter.next().unwrap_or("project/example.json"))?,
             "ls" => match iter.next().unwrap_or("") {
@@ -428,11 +482,13 @@ impl Cli {
             "rm" | "del" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_rm_lang()?,
                 "pos" => self.execute_rm_pos()?,
+                "word" => self.execute_rm_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "rst" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_rst_lang()?,
                 "pos" => self.execute_rst_pos()?,
+                "word" => self.execute_rst_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "save" => self.execute_save(iter.next().unwrap_or("project/example.json"))?,
@@ -457,8 +513,11 @@ impl Cli {
 impl Babel {
     fn summarize_lang(&self, lang: &Language) -> String {
         format!("{}({})", lang.name(), match lang.ancestor() {
-            Some(ancestor) => ancestor.to_string(),
-            None => String::from("root")
+            Some(ancestor) => match self.lang_at(ancestor) {
+                Ok(x) => x.name(),
+                Err(_) => "?",
+            }
+            None => "root",
         })
     }
 
