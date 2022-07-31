@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 // use serde_json::Result as JsonResult;
-// use regex::Regex;
+use regex::{Regex, Replacer};
+use std::borrow::Cow;
 use super::language::Substitute;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy)]
@@ -12,6 +13,14 @@ pub struct Coordinate {
 impl Coordinate {
     pub fn new(lang: usize, word: usize) -> Self {
         Self { lang, word }
+    }
+
+    pub fn lang(&self) -> usize {
+        self.lang
+    }
+
+    pub fn word(&self) -> usize {
+        self.word
     }
 }
 
@@ -56,15 +65,29 @@ impl Word {
         self.pos
     }
 
+    pub fn ancestor(&self) -> &Vec<Coordinate> {
+        &self.ancestor
+    }
+
+    fn replace_all(re: &Regex, text: &str, rep: &str) -> String {
+        let mut text = text.to_owned();
+        loop {
+            match re.replace_all(&text, rep) {
+                Cow::Borrowed(_) => break text,
+                owned => text = owned.into_owned(),
+            }
+        }
+    }
+
     pub fn morph(&mut self, m2w: &Vec<Substitute>, m2u: &Vec<Substitute>) {
         let mut conlang = self.mnemonic.to_owned();
         for sub in m2w {
-            conlang = sub.pat().replace_all(&conlang, sub.repl()).into_owned();
+            conlang = Word::replace_all(sub.pat(), &conlang, sub.repl());
         }
         self.conlang = conlang;
         let mut upa = self.mnemonic.to_owned();
         for sub in m2u {
-            upa = sub.pat().replace_all(&upa, sub.repl()).into_owned();
+            upa = Word::replace_all(sub.pat(), &upa, sub.repl());
         }
         self.upa = upa;
     }
@@ -72,7 +95,7 @@ impl Word {
     pub fn labor(&self, coord: Coordinate, mnt: &Vec<Substitute>, m2w: &Vec<Substitute>, m2u: &Vec<Substitute>) -> Word {
         let mut mnemonic = self.mnemonic.to_owned();
         for sub in mnt {
-            mnemonic = sub.pat().replace_all(&mnemonic, sub.repl()).into_owned();
+            mnemonic = Word::replace_all(sub.pat(), &mnemonic, sub.repl());
         }
         let mut word = Self::shell(&mnemonic, &self.natlang, self.pos, &self.info);
         word.ancestor.push(coord);

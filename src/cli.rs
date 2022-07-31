@@ -1,5 +1,5 @@
 use crate::core::Babel;
-use crate::core::language::{Language, Replace};
+use crate::core::language::{Language, Replace, SoundChange};
 use crate::core::orth;
 use crate::core::pos::PoS;
 use crate::core::word::Word;
@@ -9,6 +9,7 @@ use std::io;
 
 #[derive(Debug)]
 pub enum CliError {
+    InvalidInput,
     LanguageInvalid,
     Modified,
     UnknownCommand,
@@ -17,6 +18,7 @@ pub enum CliError {
 impl Display for CliError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            CliError::InvalidInput => write!(f, "Invalid input!"),
             CliError::LanguageInvalid => write!(f, "You should create a language first."),
             CliError::Modified => write!(f, "You should save first."),
             CliError::UnknownCommand => write!(f, "Unknown command."),
@@ -64,6 +66,15 @@ impl Cli {
         let mut buf = String::new();
         io::stdin().read_line(&mut buf)?;
         Ok(buf.trim().to_string())
+    }
+
+    fn fetch_int(prompt: &str) -> io::Result<String> {
+        Cli::prompt(prompt);
+        let mut buf = String::new();
+        io::stdin().read_line(&mut buf)?;
+        let int = orth::interpret(buf.trim());
+        Cli::promptln(prompt, &int);
+        Ok(int)
     }
 
     fn fetch_or(prompt: &str, default: &str) -> io::Result<String> {
@@ -123,10 +134,8 @@ impl Cli {
     }
 
     fn build_replace() -> Result<Replace, Box<dyn Error>> {
-        let pat = orth::interpret(&Cli::fetch("pattern")?);
-        Cli::promptln("pattern", &pat);
-        let repl = orth::interpret(&Cli::fetch("repl")?);
-        Cli::promptln("repl", &repl);
+        let pat = Cli::fetch_int("pattern")?;
+        let repl = Cli::fetch_int("repl")?;
         let rule = Replace::new(&pat, &repl)?;
         Ok(rule)
     }
@@ -138,8 +147,15 @@ impl Cli {
         Ok(rule)
     }
 
+    fn build_sound_change() -> io::Result<SoundChange> {
+        let tg = Cli::fetch_int("target")?;
+        let repl = Cli::fetch_int("repl")?;
+        let env = Cli::fetch_int("env")?;
+        Ok(SoundChange::new(&tg, &repl, &env))
+    }
+
     fn build_word(&self) -> io::Result<Word> {
-        let mnemonic = Cli::fetch("mnemonic")?;
+        let mnemonic = Cli::fetch_int("mnemonic")?;
         let natlang = Cli::fetch("natlang")?;
         let pos = loop {
             let abbr = Cli::fetch("pos")?;
@@ -203,6 +219,23 @@ impl Cli {
         Ok(())
     }
 
+    fn execute_add_cat(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang_mut()?;
+        let name = Cli::fetch("name")?.chars().next().ok_or(CliError::InvalidInput)?;
+        let content = Cli::fetch_int("content")?;
+        lang.add_cat(name, &content);
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_add_mnt(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang_mut()?;
+        let sc = Cli::build_sound_change()?;
+        lang.add_mnt(sc)?;
+        self.modify();
+        Ok(())
+    }
+
     fn execute_add_pos(&mut self) -> io::Result<()> {
         let item = Cli::build_pos()?;
         self.babel.add_pos(item);
@@ -243,8 +276,25 @@ impl Cli {
         Ok(())
     }
 
-    fn execute_debug(&self) {
-        println!("{:#?}", self.babel);
+    fn execute_debug(&self) -> Result<(), Box<dyn Error>> {
+        // println!("{:#?}", self.babel);
+        let lang = self.cur_lang()?;
+        let sca = lang.mnemonic_transform().compile_all()?;
+        let mut mnemonic = Cli::fetch_int("mnemonic")?;
+        for sub in &sca {
+            mnemonic = sub.pat().replace_all(&mnemonic, sub.repl()).into_owned();
+        }
+        println!("{}", mnemonic);
+        println!("{:#?}", sca);
+        Ok(())
+    }
+
+    fn execute_derive(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.check_lang()?;
+        let ancestor_idx = Cli::fetch_idx("ancestor's index")?;
+        self.babel.derive(lang, ancestor_idx)?;
+        self.modify();
+        Ok(())
     }
 
     fn execute_int(string: &str) {
@@ -281,6 +331,14 @@ impl Cli {
         for (i, pos) in self.babel.enum_pos() {
             println!("{}. {}({})", i, pos.name(), pos.abbr());
         }
+    }
+
+    fn execute_ls_word(&self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang()?;
+        for (i, word) in lang.enum_word() {
+            println!("{}.\t{}", i, self.babel.summarize_word(word));
+        }
+        Ok(())
     }
 
     fn execute_pwd(&self) -> Result<(), Box<dyn Error>> {
@@ -338,6 +396,8 @@ impl Cli {
                 "lang" => self.execute_add_lang()?,
                 "m2u" => self.execute_add_m2u()?,
                 "m2w" => self.execute_add_m2w()?,
+                "cat" => self.execute_add_cat()?,
+                "mnt" => self.execute_add_mnt()?,
                 "pos" => self.execute_add_pos()?,
                 "word" => self.execute_add_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
@@ -348,7 +408,8 @@ impl Cli {
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "cd" => self.execute_cd()?,
-            "dbg" => self.execute_debug(),
+            "dbg" => self.execute_debug()?,
+            "drv" => self.execute_derive()?,
             "exit" | ";" => {
                 self.check_modified()?;
                 return Ok(false);
@@ -360,6 +421,7 @@ impl Cli {
                 "lang" => self.execute_ls_lang(),
                 "m2w" => self.execute_ls_m2w()?,
                 "pos" => self.execute_ls_pos(),
+                "word" => self.execute_ls_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "pwd" => self.execute_pwd()?,
@@ -401,6 +463,10 @@ impl Babel {
     }
 
     fn summarize_word(&self, word: &Word) -> String {
-        format!("{:10}{:5}{:20}", word.conlang(), word.pos(), word.natlang())
+        let pos = match self.pos_at(word.pos()) {
+            Ok(x) => x.abbr(),
+            Err(_) => "?",
+        };
+        format!("{:10}\t{:5}\t{:20}", word.conlang(), pos, word.natlang())
     }
 }

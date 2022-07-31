@@ -21,8 +21,13 @@ use std::fs::File;
 pub enum BabelError {
     // AdditionRejected,
     // AlterationRejected,
+    DeriveFromSelf,
+    GhostWord(usize),
     IndexOutOfRange,
+    // InvalidCatagory(char),
     InvalidElement,
+    InvalidSCEnvironment,
+    InvalidSCTarget,
 }
 
 impl Display for BabelError {
@@ -30,8 +35,13 @@ impl Display for BabelError {
         match self {
             // BabelError::AdditionRejected => write!(f, "Addition is rejected."),
             // BabelError::AlterationRejected => write!(f, "Alteration is rejected."),
+            BabelError::DeriveFromSelf => write!(f, "Cannot derive from self!"),
+            BabelError::GhostWord(idx) => write!(f, "Ghost word: {}", idx),
             BabelError::IndexOutOfRange => write!(f, "Index out of range!"),
+            // BabelError::InvalidCatagory(name) => write!(f, "Invalid catagory: {}", name),
             BabelError::InvalidElement => write!(f, "Invalid element!"),
+            BabelError::InvalidSCEnvironment => write!(f, "Invalid SC environment!"),
+            BabelError::InvalidSCTarget => write!(f, "Invalid SC target!"),
         }
     }
 }
@@ -99,6 +109,25 @@ impl Babel {
 
     pub fn alt_pos(&mut self, idx: usize, item: PoS) -> Result<(), BabelError> {
         Babel::template_alt(&mut self.pos, idx, item)
+    }
+
+    pub fn derive(&mut self, lang: usize, ancestor_idx: usize) -> Result<(), BabelError> {
+        if lang == ancestor_idx {
+            return Err(BabelError::DeriveFromSelf);
+        } else if lang >= self.language.len() || ancestor_idx >= self.language.len() {
+            return Err(BabelError::IndexOutOfRange);
+        }
+        let (lang, ancestor) = if lang > ancestor_idx {
+            let (first, second) = self.language.split_at_mut(lang);
+            (&mut second[0], &first[ancestor_idx])
+        } else {
+            let (first, second) = self.language.split_at_mut(ancestor_idx);
+            (&mut first[lang], &second[0])
+        };
+        let lang = lang.as_mut().ok_or(BabelError::InvalidElement)?;
+        let ancestor = ancestor.as_ref().ok_or(BabelError::InvalidElement)?;
+        lang.drv(ancestor_idx, ancestor)?;
+        Ok(())
     }
 
     pub fn enum_lang(&self) -> impl Iterator<Item = (usize, &Language)> {
@@ -187,6 +216,15 @@ impl Babel {
     fn template_enum<T>(seq: &Vec<Option<T>>) -> impl Iterator<Item = (usize, &T)> {
         seq.iter().enumerate().filter_map(|(idx, item)| {
             match item.as_ref() {
+                Some(x) => Some((idx, x)),
+                None => None
+            }
+        })
+    }
+
+    fn template_enum_mut<T>(seq: &mut Vec<Option<T>>) -> impl Iterator<Item = (usize, &mut T)> {
+        seq.iter_mut().enumerate().filter_map(|(idx, item)| {
+            match item.as_mut() {
                 Some(x) => Some((idx, x)),
                 None => None
             }
