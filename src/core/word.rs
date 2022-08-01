@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 // use serde_json::Result as JsonResult;
-use regex::{Regex, Replacer};
+use regex::Regex;
 use std::borrow::Cow;
 use super::language::Substitute;
 
@@ -73,6 +73,14 @@ impl Word {
         &self.ancestor
     }
 
+    pub fn add_ancestor(&mut self, coord: Coordinate) {
+        self.ancestor.push(coord);
+    }
+
+    pub fn set_ancestor(&mut self, other: &[Coordinate]) {
+        self.ancestor = other.to_vec();
+    }
+
     pub fn info(&self) -> &str {
         &self.info
     }
@@ -85,6 +93,12 @@ impl Word {
                 Cow::Owned(s) => text = s,
             }
         }
+    }
+
+    pub fn fuse(&mut self, other: Word) {
+        self.conlang = other.conlang;
+        self.upa = other.upa;
+        self.mnemonic = other.mnemonic;
     }
 
     pub fn morph(&mut self, m2w: &Vec<Substitute>, m2u: &Vec<Substitute>) {

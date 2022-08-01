@@ -42,6 +42,14 @@ impl SCA {
         SCA { cat: HashMap::new(), sc: Vec::new() }
     }
 
+    pub fn cat(&self) -> &HashMap<char, String> {
+        &self.cat
+    }
+
+    pub fn sc(&self) -> &Vec<SoundChange> {
+        &self.sc
+    }
+
     pub fn add_cat(&mut self, name: char, content: &str) {
         self.cat.insert(name, content.to_string());
     }
@@ -246,6 +254,8 @@ impl Language {
         let m2w = self.make_m2w();
         let m2u = self.make_m2u();
         item.morph(&m2w, &m2u);
+        let old_ancestor = self.vocab.get(idx).ok_or(BabelError::IndexOutOfRange)?.as_ref().ok_or(BabelError::InvalidElement)?.ancestor();
+        item.set_ancestor(old_ancestor);
         Babel::template_alt(&mut self.vocab, idx, item)
     }
 
@@ -260,7 +270,8 @@ impl Language {
             if ancestor_coord.len() == 1 && ancestor_coord[0].lang() == ancestor_idx {
                 let ancestor_coord = ancestor_coord[0];
                 let word_ancestor = queue.get(ancestor_coord.word()).ok_or(BabelError::GhostWord(idx))?.ok_or(BabelError::GhostWord(idx))?;
-                *word = word_ancestor.labor(ancestor_coord, &mnt, &m2w, &m2u);
+                let neo_word = word_ancestor.labor(ancestor_coord, &mnt, &m2w, &m2u);
+                word.fuse(neo_word);
                 queue[ancestor_coord.word()] = None;
             }
         }
@@ -275,6 +286,18 @@ impl Language {
 
     pub fn enum_m2w(&self) -> impl Iterator<Item = (usize, &Replace)> {
         Language::template_enum(&self.mnemonic_to_word)
+    }
+
+    pub fn enum_m2u(&self) -> impl Iterator<Item = (usize, &Replace)> {
+        Language::template_enum(&self.mnemonic_to_upa)
+    }
+
+    pub fn enum_cat(&self) -> impl Iterator<Item = (usize, (&char, &String))> {
+        self.mnemonic_transform.cat().iter().enumerate()
+    }
+
+    pub fn enum_mnt(&self) -> impl Iterator<Item = (usize, &SoundChange)> {
+        Language::template_enum(self.mnemonic_transform.sc())
     }
 
     pub fn enum_word(&self) -> impl Iterator<Item = (usize, &Word)> {

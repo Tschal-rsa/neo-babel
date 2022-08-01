@@ -4,7 +4,7 @@ pub mod orth;
 pub mod pos;
 pub mod word;
 
-use language::{Language, Replace};
+use language::Language;
 use pos::PoS;
 use serde::{Deserialize, Serialize};
 // use serde_json::Result as JsonResult;

@@ -358,9 +358,29 @@ impl Cli {
     }
 
     fn execute_ls_m2w(&self) -> Result<(), Box<dyn Error>> {
-        let lang = self.cur_lang()?;
-        for (i, rule) in lang.enum_m2w() {
+        for (i, rule) in self.cur_lang()?.enum_m2w() {
             println!("{}. {} -> {}", i, rule.pat(), rule.repl());
+        }
+        Ok(())
+    }
+
+    fn execute_ls_m2u(&self) -> Result<(), Box<dyn Error>> {
+        for (i, rule) in self.cur_lang()?.enum_m2u() {
+            println!("{}. {} -> {}", i, rule.pat(), rule.repl());
+        }
+        Ok(())
+    }
+
+    fn execute_ls_cat(&self) -> Result<(), Box<dyn Error>> {
+        for (i, (&name, content)) in self.cur_lang()?.enum_cat() {
+            println!("{}. {} = {}", i, name, content);
+        }
+        Ok(())
+    }
+
+    fn execute_ls_mnt(&self) -> Result<(), Box<dyn Error>> {
+        for (i, rule) in self.cur_lang()?.enum_mnt() {
+            println!("{}.\t{:4} ->  {:4} |  {}", i, rule.tg(), rule.repl(), rule.env());
         }
         Ok(())
     }
@@ -471,9 +491,12 @@ impl Cli {
             "q!" => return Ok(false),
             "int" => Cli::execute_int(iter.next().unwrap_or("")),
             "load" => self.execute_load(iter.next().unwrap_or("project/example.json"))?,
-            "ls" => match iter.next().unwrap_or("") {
+            "ls" => match iter.next().unwrap_or("word") {
                 "lang" => self.execute_ls_lang(),
                 "m2w" => self.execute_ls_m2w()?,
+                "m2u" => self.execute_ls_m2u()?,
+                "cat" => self.execute_ls_cat()?,
+                "mnt" => self.execute_ls_mnt()?,
                 "pos" => self.execute_ls_pos(),
                 "word" => self.execute_ls_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
