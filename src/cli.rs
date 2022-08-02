@@ -115,6 +115,11 @@ impl Cli {
         Ok(idx)
     }
 
+    fn fetch_char(prompt: &str) -> Result<char, Box<dyn Error>> {
+        let name = Cli::fetch(prompt)?.chars().next().ok_or(CliError::InvalidInput)?;
+        Ok(name)
+    }
+
     fn build_new_lang(&self) -> io::Result<Language> {
         let name = Cli::fetch("name")?;
         Ok(Language::new(&name))
@@ -152,8 +157,8 @@ impl Cli {
     }
 
     fn update_replace(old: &Replace) -> Result<Replace, Box<dyn Error>> {
-        let pat = Cli::fetch_or("pattern", old.pat())?;
-        let repl = Cli::fetch_or("repl", old.repl())?;
+        let pat = Cli::fetch_int_or("pattern", old.pat())?;
+        let repl = Cli::fetch_int_or("repl", old.repl())?;
         let rule = Replace::new(&pat, &repl)?;
         Ok(rule)
     }
@@ -162,6 +167,13 @@ impl Cli {
         let tg = Cli::fetch_int("target")?;
         let repl = Cli::fetch_int("repl")?;
         let env = Cli::fetch_int("env")?;
+        Ok(SoundChange::new(&tg, &repl, &env))
+    }
+
+    fn update_sound_change(old: &SoundChange) -> io::Result<SoundChange> {
+        let tg = Cli::fetch_int_or("target", old.tg())?;
+        let repl = Cli::fetch_int_or("repl", old.repl())?;
+        let env = Cli::fetch_int_or("env", old.env())?;
         Ok(SoundChange::new(&tg, &repl, &env))
     }
 
@@ -246,7 +258,7 @@ impl Cli {
 
     fn execute_add_cat(&mut self) -> Result<(), Box<dyn Error>> {
         let lang = self.cur_lang_mut()?;
-        let name = Cli::fetch("name")?.chars().next().ok_or(CliError::InvalidInput)?;
+        let name = Cli::fetch_char("name")?;
         let content = Cli::fetch_int("content")?;
         lang.add_cat(name, &content);
         self.modify();
@@ -281,6 +293,36 @@ impl Cli {
         Cli::update_lang(old)?;
         self.modify();
         self.cur_lang = Some(idx);
+        Ok(())
+    }
+
+    fn execute_alt_m2u(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang()?;
+        let idx = Cli::fetch_idx("index")?;
+        let old = lang.m2u_at(idx)?;
+        let item = Cli::update_replace(old)?;
+        self.cur_lang_mut()?.alt_m2u(idx, item)?;
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_alt_m2w(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang()?;
+        let idx = Cli::fetch_idx("index")?;
+        let old = lang.m2w_at(idx)?;
+        let item = Cli::update_replace(old)?;
+        self.cur_lang_mut()?.alt_m2w(idx, item)?;
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_alt_mnt(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang()?;
+        let idx = Cli::fetch_idx("index")?;
+        let old = lang.mnt_at(idx)?;
+        let sc = Cli::update_sound_change(old)?;
+        self.cur_lang_mut()?.alt_mnt(idx, sc)?;
+        self.modify();
         Ok(())
     }
 
@@ -319,8 +361,8 @@ impl Cli {
         for sub in &sca {
             mnemonic = sub.pat().replace_all(&mnemonic, sub.repl()).into_owned();
         }
-        println!("{}", mnemonic);
         println!("{:#?}", sca);
+        println!("{}", mnemonic);
         Ok(())
     }
 
@@ -328,6 +370,33 @@ impl Cli {
         let lang = self.check_lang()?;
         let ancestor_idx = Cli::fetch_idx("ancestor's index")?;
         self.babel.derive(lang, ancestor_idx)?;
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_ins_m2u(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang_mut()?;
+        let idx = Cli::fetch_idx("index")?;
+        let item = Cli::build_replace()?;
+        lang.ins_m2u(idx, item)?;
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_ins_m2w(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang_mut()?;
+        let idx = Cli::fetch_idx("index")?;
+        let item = Cli::build_replace()?;
+        lang.ins_m2w(idx, item)?;
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_ins_mnt(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang_mut()?;
+        let idx = Cli::fetch_idx("index")?;
+        let sc = Cli::build_sound_change()?;
+        lang.ins_mnt(idx, sc)?;
         self.modify();
         Ok(())
     }
@@ -380,7 +449,7 @@ impl Cli {
 
     fn execute_ls_mnt(&self) -> Result<(), Box<dyn Error>> {
         for (i, rule) in self.cur_lang()?.enum_mnt() {
-            println!("{}.\t{:4} ->  {:4} |  {}", i, rule.tg(), rule.repl(), rule.env());
+            println!("{}.\t{:4} ->  {:4} /  {}", i, rule.tg(), rule.repl(), rule.env());
         }
         Ok(())
     }
@@ -412,6 +481,35 @@ impl Cli {
         if self.cur_lang == Some(idx) {
             self.cur_lang = if self.babel.lang().len() > 0 { Some(0) } else { None };
         }
+        Ok(())
+    }
+
+    fn execute_rm_m2u(&mut self) -> Result<(), Box<dyn Error>> {
+        let idx = Cli::fetch_idx("index")?;
+        self.cur_lang_mut()?.rm_m2u(idx)?;
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_rm_m2w(&mut self) -> Result<(), Box<dyn Error>> {
+        let idx = Cli::fetch_idx("index")?;
+        self.cur_lang_mut()?.rm_m2w(idx)?;
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_rm_cat(&mut self) -> Result<(), Box<dyn Error>> {
+        let name = Cli::fetch_char("name")?;
+        let content = self.cur_lang_mut()?.rm_cat(name)?;
+        println!("{}", content);
+        self.modify();
+        Ok(())
+    }
+
+    fn execute_rm_mnt(&mut self) -> Result<(), Box<dyn Error>> {
+        let idx = Cli::fetch_idx("index")?;
+        self.cur_lang_mut()?.rm_mnt(idx)?;
+        self.modify();
         Ok(())
     }
 
@@ -477,6 +575,9 @@ impl Cli {
             }
             "alt" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_alt_lang()?,
+                "m2u" => self.execute_alt_m2u()?,
+                "m2w" => self.execute_alt_m2w()?,
+                "mnt" => self.execute_alt_mnt()?,
                 "pos" => self.execute_alt_pos()?,
                 "word" => self.execute_alt_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
@@ -489,6 +590,12 @@ impl Cli {
                 return Ok(false);
             }
             "q!" => return Ok(false),
+            "ins" => match iter.next().unwrap_or("") {
+                "m2u" => self.execute_ins_m2u()?,
+                "m2w" => self.execute_ins_m2w()?,
+                "mnt" => self.execute_ins_mnt()?,
+                _ => return Err(Box::new(CliError::UnknownCommand))
+            }
             "int" => Cli::execute_int(iter.next().unwrap_or("")),
             "load" => self.execute_load(iter.next().unwrap_or("project/example.json"))?,
             "ls" => match iter.next().unwrap_or("word") {
@@ -504,6 +611,10 @@ impl Cli {
             "pwd" => self.execute_pwd()?,
             "rm" | "del" => match iter.next().unwrap_or("") {
                 "lang" => self.execute_rm_lang()?,
+                "m2u" => self.execute_rm_m2u()?,
+                "m2w" => self.execute_rm_m2w()?,
+                "cat" => self.execute_rm_cat()?,
+                "mnt" => self.execute_rm_mnt()?,
                 "pos" => self.execute_rm_pos()?,
                 "word" => self.execute_rm_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))

@@ -60,10 +60,30 @@ impl SCA {
         Ok(())
     }
 
+    pub fn alt_sc(&mut self, idx: usize, sc: SoundChange) -> Result<(), Box<dyn Error>> {
+        self.compile(&sc)?;
+        Language::template_alt(&mut self.sc, idx, sc)?;
+        Ok(())
+    }
+
+    pub fn ins_sc(&mut self, idx: usize, sc: SoundChange) -> Result<(), Box<dyn Error>> {
+        self.compile(&sc)?;
+        Language::template_ins(&mut self.sc, idx, sc)?;
+        Ok(())
+    }
+
+    pub fn rm_cat(&mut self, name: char) -> Result<String, BabelError> {
+        self.cat.remove(&name).ok_or(BabelError::IndexOutOfRange)
+    }
+
+    pub fn rm_sc(&mut self, idx: usize) -> Result<(), BabelError> {
+        Language::template_rm(&mut self.sc, idx)
+    }
+
     fn compile_unit(&self, sc: &SoundChange) -> Result<Substitute, Box<dyn Error>> {
         let env: Vec<_> = sc.env().split('_').collect();
         let mut pat = format!(
-            "({}){}({})",
+            "(?P<pre>{}){}(?P<post>{})",
             env.get(0).ok_or(BabelError::InvalidSCEnvironment)?,
             sc.tg(),
             env.get(1).ok_or(BabelError::InvalidSCEnvironment)?
@@ -71,7 +91,7 @@ impl SCA {
         for (name, content) in self.cat.iter() {
             pat = pat.replace(&name.to_string(), &format!("[{}]", content));
         }
-        let repl = format!("${{1}}{}${{2}}", sc.repl());
+        let repl = format!("${{pre}}{}${{post}}", sc.repl());
         let sub = Substitute::new(&pat, &repl)?;
         Ok(sub)
     }
@@ -203,6 +223,18 @@ impl Language {
         &self.mnemonic_transform
     }
 
+    pub fn m2w_at(&self, idx: usize) -> Result<&Replace, BabelError> {
+        Language::template_at(&self.mnemonic_to_word, idx)
+    }
+
+    pub fn m2u_at(&self, idx: usize) -> Result<&Replace, BabelError> {
+        Language::template_at(&self.mnemonic_to_upa, idx)
+    }
+
+    pub fn mnt_at(&self, idx: usize) -> Result<&SoundChange, BabelError> {
+        Language::template_at(self.mnemonic_transform.sc(), idx)
+    }
+
     pub fn word_at(&self, idx: usize) -> Result<&Word, BabelError> {
         Babel::template_at(&self.vocab, idx)
     }
@@ -248,6 +280,14 @@ impl Language {
 
     pub fn alt_m2w(&mut self, idx: usize, item: Replace) -> Result<(), BabelError> {
         Language::template_alt(&mut self.mnemonic_to_word, idx, item)
+    }
+
+    pub fn alt_m2u(&mut self, idx: usize, item: Replace) -> Result<(), BabelError> {
+        Language::template_alt(&mut self.mnemonic_to_upa, idx, item)
+    }
+
+    pub fn alt_mnt(&mut self, idx: usize, item: SoundChange) -> Result<(), Box<dyn Error>> {
+        self.mnemonic_transform.alt_sc(idx, item)
     }
 
     pub fn alt_word(&mut self, idx: usize, mut item: Word) -> Result<(), BabelError> {
@@ -312,8 +352,28 @@ impl Language {
         Language::template_ins(&mut self.mnemonic_to_word, idx, item)
     }
 
+    pub fn ins_m2u(&mut self, idx: usize, item: Replace) -> Result<(), BabelError> {
+        Language::template_ins(&mut self.mnemonic_to_upa, idx, item)
+    }
+
+    pub fn ins_mnt(&mut self, idx: usize, item: SoundChange) -> Result<(), Box<dyn Error>> {
+        self.mnemonic_transform.ins_sc(idx, item)
+    }
+
     pub fn rm_m2w(&mut self, idx: usize) -> Result<(), BabelError> {
         Language::template_rm(&mut self.mnemonic_to_word, idx)
+    }
+
+    pub fn rm_m2u(&mut self, idx: usize) -> Result<(), BabelError> {
+        Language::template_rm(&mut self.mnemonic_to_upa, idx)
+    }
+
+    pub fn rm_cat(&mut self, name: char) -> Result<String, BabelError> {
+        self.mnemonic_transform.rm_cat(name)
+    }
+
+    pub fn rm_mnt(&mut self, idx: usize) -> Result<(), BabelError> {
+        self.mnemonic_transform.rm_sc(idx)
     }
 
     pub fn rm_word(&mut self, idx: usize) -> Result<(), BabelError> {
@@ -325,11 +385,13 @@ impl Language {
     }
 
     fn template_alt<T>(seq: &mut Vec<T>, idx: usize, item: T) -> Result<(), BabelError> {
-        if idx >= seq.len() {
-            return Err(BabelError::IndexOutOfRange);
-        }
-        seq[idx] = item;
+        let old_item = seq.get_mut(idx).ok_or(BabelError::IndexOutOfRange)?;
+        *old_item = item;
         Ok(())
+    }
+
+    fn template_at<T>(seq: &Vec<T>, idx: usize) -> Result<&T, BabelError> {
+        seq.get(idx).ok_or(BabelError::IndexOutOfRange)
     }
 
     fn template_enum<T>(seq: &Vec<T>) -> impl Iterator<Item = (usize, &T)> {
