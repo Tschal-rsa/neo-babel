@@ -111,21 +111,26 @@ impl Babel {
         Babel::template_alt(&mut self.pos, idx, item)
     }
 
-    pub fn derive(&mut self, lang: usize, ancestor_idx: usize) -> Result<(), BabelError> {
-        if lang == ancestor_idx {
+    fn mut_and_ref(&mut self, mut_idx: usize, ref_idx: usize) -> Result<(&mut Language, &Language), BabelError> {
+        if mut_idx == ref_idx {
             return Err(BabelError::DeriveFromSelf);
-        } else if lang >= self.language.len() || ancestor_idx >= self.language.len() {
+        } else if mut_idx >= self.language.len() || ref_idx >= self.language.len() {
             return Err(BabelError::IndexOutOfRange);
         }
-        let (lang, ancestor) = if lang > ancestor_idx {
-            let (first, second) = self.language.split_at_mut(lang);
-            (&mut second[0], &first[ancestor_idx])
+        let (lang, ancestor) = if mut_idx > ref_idx {
+            let (first, second) = self.language.split_at_mut(mut_idx);
+            (&mut second[0], &first[ref_idx])
         } else {
-            let (first, second) = self.language.split_at_mut(ancestor_idx);
-            (&mut first[lang], &second[0])
+            let (first, second) = self.language.split_at_mut(ref_idx);
+            (&mut first[mut_idx], &second[0])
         };
-        let lang = lang.as_mut().ok_or(BabelError::InvalidElement)?;
-        let ancestor = ancestor.as_ref().ok_or(BabelError::InvalidElement)?;
+        let mut_item = lang.as_mut().ok_or(BabelError::InvalidElement)?;
+        let ref_item = ancestor.as_ref().ok_or(BabelError::InvalidElement)?;
+        Ok((mut_item, ref_item))
+    }
+
+    pub fn derive(&mut self, lang: usize, ancestor_idx: usize) -> Result<(), BabelError> {
+        let (lang, ancestor) = self.mut_and_ref(lang, ancestor_idx)?;
         lang.drv(ancestor_idx, ancestor)?;
         Ok(())
     }

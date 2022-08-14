@@ -104,12 +104,18 @@ impl Word {
     pub fn morph(&mut self, m2w: &Vec<Substitute>, m2u: &Vec<Substitute>) {
         let mut conlang = self.mnemonic.to_owned();
         for sub in m2w {
-            conlang = Word::replace_all(sub.pat(), &conlang, sub.repl());
+            // conlang = Word::replace_all(sub.pat(), &conlang, sub.repl());
+            if let Cow::Owned(s) = sub.pat().replace_all(&conlang, sub.repl()) {
+                conlang = s;
+            }
         }
         self.conlang = conlang;
         let mut upa = self.mnemonic.to_owned();
         for sub in m2u {
-            upa = Word::replace_all(sub.pat(), &upa, sub.repl());
+            // upa = Word::replace_all(sub.pat(), &upa, sub.repl());
+            if let Cow::Owned(s) = sub.pat().replace_all(&upa, sub.repl()) {
+                upa = s;
+            }
         }
         self.upa = upa;
     }

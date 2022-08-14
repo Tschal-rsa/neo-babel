@@ -231,6 +231,10 @@ impl Language {
         Language::template_at(&self.mnemonic_to_upa, idx)
     }
 
+    pub fn cat_at(&self, name: char) -> Result<&String, BabelError> {
+        self.mnemonic_transform.cat().get(&name).ok_or(BabelError::IndexOutOfRange)
+    }
+
     pub fn mnt_at(&self, idx: usize) -> Result<&SoundChange, BabelError> {
         Language::template_at(self.mnemonic_transform.sc(), idx)
     }
@@ -346,6 +350,12 @@ impl Language {
 
     fn enum_word_mut(&mut self) -> impl Iterator<Item = (usize, &mut Word)> {
         Babel::template_enum_mut(&mut self.vocab)
+    }
+
+    pub fn etym_word(&mut self, idx: usize, ancestors: &[Coordinate]) -> Result<(), BabelError> {
+        let word = self.vocab.get_mut(idx).ok_or(BabelError::IndexOutOfRange)?.as_mut().ok_or(BabelError::InvalidElement)?;
+        word.set_ancestor(ancestors);
+        Ok(())
     }
 
     pub fn ins_m2w(&mut self, idx: usize, item: Replace) -> Result<(), BabelError> {

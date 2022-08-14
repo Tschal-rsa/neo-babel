@@ -2,7 +2,7 @@ use crate::core::Babel;
 use crate::core::language::{Language, Replace, SoundChange};
 use crate::core::orth;
 use crate::core::pos::PoS;
-use crate::core::word::Word;
+use crate::core::word::{Word, Coordinate};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::io;
@@ -32,6 +32,7 @@ pub struct Cli {
     babel: Babel,
     cur_lang: Option<usize>,
     modified: bool,
+    last_command: String,
 }
 
 impl Cli {
@@ -40,6 +41,7 @@ impl Cli {
             babel: Babel::new(),
             cur_lang: None,
             modified: false,
+            last_command: String::new(),
         }
     }
 
@@ -115,8 +117,8 @@ impl Cli {
         Ok(idx)
     }
 
-    fn fetch_char(prompt: &str) -> Result<char, Box<dyn Error>> {
-        let name = Cli::fetch(prompt)?.chars().next().ok_or(CliError::InvalidInput)?;
+    fn fetch_char_int(prompt: &str) -> Result<char, Box<dyn Error>> {
+        let name = Cli::fetch_int(prompt)?.chars().next().ok_or(CliError::InvalidInput)?;
         Ok(name)
     }
 
@@ -204,6 +206,22 @@ impl Cli {
         Ok(Word::shell(&mnemonic, &natlang, pos, &info))
     }
 
+    fn build_ancestors(&self) -> Result<Vec<Coordinate>, Box<dyn Error>> {
+        let mut ancestors = Vec::new();
+        loop {
+            let lang_idx = match Cli::fetch_idx("language") {
+                Ok(idx) => idx,
+                Err(_) => break Ok(ancestors),
+            };
+            let lang = self.babel.lang_at(lang_idx)?;
+            println!("{}", self.babel.summarize_lang(lang));
+            let word_idx = Cli::fetch_idx("word")?;
+            let word = lang.word_at(word_idx)?;
+            println!("{}", self.babel.summarize_word(word));
+            ancestors.push(Coordinate::new(lang_idx, word_idx));
+        }
+    }
+
     fn check_lang(&self) -> Result<usize, CliError> {
         self.cur_lang.ok_or(CliError::LanguageInvalid)
     }
@@ -258,7 +276,7 @@ impl Cli {
 
     fn execute_add_cat(&mut self) -> Result<(), Box<dyn Error>> {
         let lang = self.cur_lang_mut()?;
-        let name = Cli::fetch_char("name")?;
+        let name = Cli::fetch_char_int("name")?;
         let content = Cli::fetch_int("content")?;
         lang.add_cat(name, &content);
         self.modify();
@@ -316,6 +334,16 @@ impl Cli {
         Ok(())
     }
 
+    fn execute_alt_cat(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang()?;
+        let name = Cli::fetch_char_int("name")?;
+        let old = lang.cat_at(name)?;
+        let content = Cli::fetch_int_or("content", old)?;
+        self.cur_lang_mut()?.add_cat(name, &content);
+        self.modify();
+        Ok(())
+    }
+
     fn execute_alt_mnt(&mut self) -> Result<(), Box<dyn Error>> {
         let lang = self.cur_lang()?;
         let idx = Cli::fetch_idx("index")?;
@@ -345,6 +373,13 @@ impl Cli {
         Ok(())
     }
 
+    fn execute_cat_word(&self) -> Result<(), Box<dyn Error>> {
+        let idx = Cli::fetch_idx("index")?;
+        let word = self.cur_lang()?.word_at(idx)?;
+        println!("{}", self.babel.illustrate_word(word));
+        Ok(())
+    }
+
     fn execute_cd(&mut self) -> Result<(), Box<dyn Error>> {
         let idx = Cli::fetch_idx("index")?;
         let lang = self.babel.lang_at(idx)?;
@@ -361,7 +396,7 @@ impl Cli {
         for sub in &sca {
             mnemonic = sub.pat().replace_all(&mnemonic, sub.repl()).into_owned();
         }
-        println!("{:#?}", sca);
+        // println!("{:#?}", sca);
         println!("{}", mnemonic);
         Ok(())
     }
@@ -370,6 +405,17 @@ impl Cli {
         let lang = self.check_lang()?;
         let ancestor_idx = Cli::fetch_idx("ancestor's index")?;
         self.babel.derive(lang, ancestor_idx)?;
+        self.modify();
+        Ok(())
+    }
+    
+    fn execute_etym(&mut self) -> Result<(), Box<dyn Error>> {
+        let lang = self.cur_lang()?;
+        let idx = Cli::fetch_idx("index")?;
+        let old = lang.word_at(idx)?;
+        println!("{}", self.babel.summarize_word(old));
+        let ancestors = self.build_ancestors()?;
+        self.cur_lang_mut()?.etym_word(idx, &ancestors)?;
         self.modify();
         Ok(())
     }
@@ -499,7 +545,7 @@ impl Cli {
     }
 
     fn execute_rm_cat(&mut self) -> Result<(), Box<dyn Error>> {
-        let name = Cli::fetch_char("name")?;
+        let name = Cli::fetch_char_int("name")?;
         let content = self.cur_lang_mut()?.rm_cat(name)?;
         println!("{}", content);
         self.modify();
@@ -560,7 +606,10 @@ impl Cli {
     }
 
     fn step(&mut self) -> Result<bool, Box<dyn Error>> {
-        let buf = Cli::fetch("")?;
+        let mut buf = Cli::fetch("")?;
+        if buf.trim() == "!!" {
+            buf = self.last_command.clone();
+        }
         let mut iter = buf.split_whitespace();
         match iter.next().unwrap_or("") {
             "add" => match iter.next().unwrap_or("") {
@@ -577,14 +626,20 @@ impl Cli {
                 "lang" => self.execute_alt_lang()?,
                 "m2u" => self.execute_alt_m2u()?,
                 "m2w" => self.execute_alt_m2w()?,
+                "cat" => self.execute_alt_cat()?,
                 "mnt" => self.execute_alt_mnt()?,
                 "pos" => self.execute_alt_pos()?,
                 "word" => self.execute_alt_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
+            "cat" => match iter.next().unwrap_or("word") {
+                "word" => self.execute_cat_word()?,
+                _ => return Err(Box::new(CliError::UnknownCommand))
+            }
             "cd" => self.execute_cd()?,
             "dbg" => self.execute_debug()?,
             "drv" => self.execute_derive()?,
+            "etym" => self.execute_etym()?,
             "q" | ";" => {
                 self.check_modified()?;
                 return Ok(false);
@@ -629,6 +684,7 @@ impl Cli {
             "" => (),
             _ => return Err(Box::new(CliError::UnknownCommand))
         }
+        self.last_command = buf;
         Ok(true)
     }
 
@@ -661,5 +717,30 @@ impl Babel {
             Err(_) => "?",
         };
         format!("{:10}\t{:5}\t{:20}", word.conlang(), pos, word.natlang())
+    }
+
+    fn illustrate_word(&self, word: &Word) -> String {
+        let pos = match self.pos_at(word.pos()) {
+            Ok(x) => x.abbr(),
+            Err(_) => "?",
+        };
+        let ancestors: Vec<_> = word.ancestor().iter().map(|coord| {
+            match self.lang_at(coord.lang()) {
+                Ok(lang) => match lang.word_at(coord.word()) {
+                    Ok(word) => (lang.name(), word.conlang()),
+                    Err(_) => (lang.name(), "?"),
+                }
+                Err(_) => ("?", "?"),
+            }
+        }).collect();
+        format!(
+            "conlang:\t{}\nnatlang:\t{}\npart of speech:\t{}\nmnemonic:\t{}\ninformation:\t{}\nancestors:\t{:?}",
+            word.conlang(),
+            word.natlang(),
+            pos,
+            word.mnemonic(),
+            word.info(),
+            ancestors
+        )
     }
 }
