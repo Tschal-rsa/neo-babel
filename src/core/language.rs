@@ -370,6 +370,14 @@ impl Language {
         self.mnemonic_transform.ins_sc(idx, item)
     }
 
+    pub fn revive(&mut self) {
+        let m2w = self.make_m2w();
+        let m2u = self.make_m2u();
+        for word in self.vocab.iter_mut().filter_map(|x| x.as_mut()) {
+            word.morph(&m2w, &m2u);
+        }
+    }
+
     pub fn rm_m2w(&mut self, idx: usize) -> Result<(), BabelError> {
         Language::template_rm(&mut self.mnemonic_to_word, idx)
     }

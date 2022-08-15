@@ -30,6 +30,7 @@ pub fn interpret(string: &str) -> String {
         static ref ORTH: HashMap<String, String> = init_orth();
         static ref COMMAND: Regex = Regex::new(r"\\(.{2})").unwrap();
         static ref COMBINATION: Regex = Regex::new(r"\{(\w+)\}").unwrap();
+        static ref REPLACEMENT: Regex = Regex::new(r"\$(\d+)").unwrap();
     }
     let repl_closure = |caps: &Captures| {
         match ORTH.get(&caps[1]) {
@@ -39,6 +40,7 @@ pub fn interpret(string: &str) -> String {
     };
     let string = COMBINATION.replace_all(string, repl_closure);
     let string = COMMAND.replace_all(&string, repl_closure);
+    let string = REPLACEMENT.replace_all(&string, "$${$1}");
     string.into_owned()
 }
 

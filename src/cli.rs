@@ -520,6 +520,12 @@ impl Cli {
         Ok(())
     }
 
+    fn execute_revive(&mut self) -> Result<(), Box<dyn Error>> {
+        self.cur_lang_mut()?.revive();
+        self.modify();
+        Ok(())
+    }
+
     fn execute_rm_lang(&mut self) -> Result<(), Box<dyn Error>> {
         let idx = Cli::fetch_idx("index")?;
         self.babel.rm_lang(idx)?;
@@ -680,6 +686,7 @@ impl Cli {
                 "word" => self.execute_rst_word()?,
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
+            "rvv" => self.execute_revive()?,
             "save" => self.execute_save(iter.next().unwrap_or("project/example.json"))?,
             "" => (),
             _ => return Err(Box::new(CliError::UnknownCommand))
@@ -734,11 +741,12 @@ impl Babel {
             }
         }).collect();
         format!(
-            "conlang:\t{}\nnatlang:\t{}\npart of speech:\t{}\nmnemonic:\t{}\ninformation:\t{}\nancestors:\t{:?}",
+            "conlang:\t{}\nnatlang:\t{}\npart of speech:\t{}\nmnemonic:\t{}\nUPA:\t{}\ninformation:\t{}\nancestors:\t{:?}",
             word.conlang(),
             word.natlang(),
             pos,
             word.mnemonic(),
+            word.upa(),
             word.info(),
             ancestors
         )

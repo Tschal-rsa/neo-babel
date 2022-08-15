@@ -69,6 +69,10 @@ impl Word {
         &self.mnemonic
     }
 
+    pub fn upa(&self) -> &str {
+        &self.upa
+    }
+
     pub fn ancestor(&self) -> &Vec<Coordinate> {
         &self.ancestor
     }
