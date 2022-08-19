@@ -1,9 +1,15 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 use regex::{Regex, Captures};
 use std::fs;
+use crate::build_path;
+
+fn get_path(file: &str) -> PathBuf {
+    let filename = format!("{}.txt", file);
+    build_path!("static", "orth", &filename)
+}
 
 fn init_orth() -> HashMap<String, String> {
-    let contents = fs::read_to_string("src/core/orth/command.txt").unwrap();
+    let contents = fs::read_to_string(get_path("command")).unwrap();
     let mut commands = HashMap::new();
     for line in contents.lines() {
         let pair: Vec<&str> = line.trim().split_whitespace().collect();
@@ -11,13 +17,13 @@ fn init_orth() -> HashMap<String, String> {
     }
     let mut map = HashMap::new();
     for (name, cmd) in commands.into_iter() {
-        let contents = fs::read_to_string(format!("src/core/orth/{}.txt", name)).unwrap();
+        let contents = fs::read_to_string(get_path(name)).unwrap();
         for line in contents.lines() {
             let pair: Vec<&str> = line.trim().split_whitespace().collect();
             map.insert(format!("{}{}", cmd, pair[0]), String::from(pair[1]));
         }
     }
-    let contents = fs::read_to_string("src/core/orth/combination.txt").unwrap();
+    let contents = fs::read_to_string(get_path("combination")).unwrap();
     for line in contents.lines() {
         let pair: Vec<&str> = line.trim().split_whitespace().collect();
         map.insert(String::from(pair[0]), String::from(pair[1]));

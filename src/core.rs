@@ -11,6 +11,21 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::fs::File;
+use std::path::PathBuf;
+
+#[macro_export]
+macro_rules! build_path {
+    ( $( $x:expr ),* ) => {
+        {
+            use std::path::Path;
+            let path = Path::new(".");
+            $(
+                let path = path.join($x);
+            )*
+            path
+        }
+    };
+}
 
 // trait Valid {
 //     fn destroy(&mut self);
@@ -143,8 +158,13 @@ impl Babel {
         Babel::template_enum(&self.pos)
     }
 
-    pub fn load(path: &str) -> Result<Babel, Box<dyn Error>> {
-        let file = File::open(path)?;
+    fn get_project(file: &str) -> PathBuf {
+        let filename = format!("{}.json", file);
+        build_path!("project", &filename)
+    }
+
+    pub fn load(file: &str) -> Result<Babel, Box<dyn Error>> {
+        let file = File::open(Babel::get_project(file))?;
         let neo_babel: Babel = serde_json::from_reader(file)?;
         Ok(neo_babel)
     }
@@ -157,8 +177,8 @@ impl Babel {
         Babel::template_rm(&mut self.pos, idx)
     }
 
-    pub fn save(&self, path: &str) -> Result<(), Box<dyn Error>> {
-        let file = File::create(path)?;
+    pub fn save(&self, file: &str) -> Result<(), Box<dyn Error>> {
+        let file = File::create(Babel::get_project(file))?;
         serde_json::to_writer_pretty(file, self)?;
         Ok(())
     }

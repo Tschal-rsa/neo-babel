@@ -452,9 +452,9 @@ impl Cli {
         println!("{}", interpreted);
     }
 
-    fn execute_load(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
+    fn execute_load(&mut self, file: &str) -> Result<(), Box<dyn Error>> {
         self.check_modified()?;
-        let neo_babel = Babel::load(path)?;
+        let neo_babel = Babel::load(file)?;
         self.babel = neo_babel;
         if self.babel.lang().len() > 0 {
             self.cur_lang = Some(0);
@@ -604,8 +604,8 @@ impl Cli {
         Ok(())
     }
 
-    fn execute_save(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
-        self.babel.save(path)?;
+    fn execute_save(&mut self, file: &str) -> Result<(), Box<dyn Error>> {
+        self.babel.save(file)?;
         self.modified = false;
         println!("Saved!");
         Ok(())
@@ -658,7 +658,7 @@ impl Cli {
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "int" => Cli::execute_int(iter.next().unwrap_or("")),
-            "load" => self.execute_load(iter.next().unwrap_or("project/example.json"))?,
+            "load" => self.execute_load(iter.next().unwrap_or("nameless"))?,
             "ls" => match iter.next().unwrap_or("word") {
                 "lang" => self.execute_ls_lang(),
                 "m2w" => self.execute_ls_m2w()?,
@@ -687,7 +687,7 @@ impl Cli {
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "rvv" => self.execute_revive()?,
-            "save" => self.execute_save(iter.next().unwrap_or("project/example.json"))?,
+            "save" => self.execute_save(iter.next().unwrap_or("nameless"))?,
             "" => (),
             _ => return Err(Box::new(CliError::UnknownCommand))
         }
