@@ -397,6 +397,13 @@ impl Language {
     pub fn rm_word(&mut self, idx: usize) -> Result<(), BabelError> {
         Babel::template_rm(&mut self.vocab, idx)
     }
+    
+    pub fn rst_word(&mut self, idx: usize, mut item: Word) -> Result<(), BabelError> {
+        let m2w = self.make_m2w();
+        let m2u = self.make_m2u();
+        item.morph(&m2w, &m2u);
+        Babel::template_alt(&mut self.vocab, idx, item)
+    }
 
     fn template_add<T>(seq: &mut Vec<T>, item: T) {
         seq.push(item);

@@ -12,6 +12,7 @@ pub enum CliError {
     InvalidInput,
     LanguageInvalid,
     Modified,
+    NullFile,
     UnknownCommand,
 }
 
@@ -21,6 +22,7 @@ impl Display for CliError {
             CliError::InvalidInput => write!(f, "Invalid input!"),
             CliError::LanguageInvalid => write!(f, "You should create a language first."),
             CliError::Modified => write!(f, "You should save first."),
+            CliError::NullFile => write!(f, "You should specify a filename."),
             CliError::UnknownCommand => write!(f, "Unknown command."),
         }
     }
@@ -30,6 +32,7 @@ impl Error for CliError {}
 
 pub struct Cli {
     babel: Babel,
+    filename: String,
     cur_lang: Option<usize>,
     modified: bool,
     last_command: String,
@@ -39,6 +42,7 @@ impl Cli {
     pub fn new() -> Cli {
         Cli {
             babel: Babel::new(),
+            filename: String::from("nameless"),
             cur_lang: None,
             modified: false,
             last_command: String::new(),
@@ -456,6 +460,7 @@ impl Cli {
         self.check_modified()?;
         let neo_babel = Babel::load(file)?;
         self.babel = neo_babel;
+        self.filename = file.to_string();
         if self.babel.lang().len() > 0 {
             self.cur_lang = Some(0);
             let lang = self.cur_lang()?;
@@ -599,15 +604,18 @@ impl Cli {
     fn execute_rst_word(&mut self) -> Result<(), Box<dyn Error>> {
         let idx = Cli::fetch_idx("index")?;
         let item = self.build_word()?;
-        self.cur_lang_mut()?.alt_word(idx, item)?;
+        self.cur_lang_mut()?.rst_word(idx, item)?;
         self.modify();
         Ok(())
     }
 
     fn execute_save(&mut self, file: &str) -> Result<(), Box<dyn Error>> {
-        self.babel.save(file)?;
+        if !file.is_empty() {
+            self.filename = file.to_string();
+        }
+        self.babel.save(&self.filename)?;
         self.modified = false;
-        println!("Saved!");
+        println!("Saved to {}.json", self.filename);
         Ok(())
     }
 
@@ -658,7 +666,7 @@ impl Cli {
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "int" => Cli::execute_int(iter.next().unwrap_or("")),
-            "load" => self.execute_load(iter.next().unwrap_or("nameless"))?,
+            "load" => self.execute_load(iter.next().ok_or(CliError::NullFile)?)?,
             "ls" => match iter.next().unwrap_or("word") {
                 "lang" => self.execute_ls_lang(),
                 "m2w" => self.execute_ls_m2w()?,
@@ -687,7 +695,7 @@ impl Cli {
                 _ => return Err(Box::new(CliError::UnknownCommand))
             }
             "rvv" => self.execute_revive()?,
-            "save" => self.execute_save(iter.next().unwrap_or("nameless"))?,
+            "save" => self.execute_save(iter.next().unwrap_or(""))?,
             "" => (),
             _ => return Err(Box::new(CliError::UnknownCommand))
         }
