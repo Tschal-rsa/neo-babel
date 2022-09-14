@@ -1,0 +1,14 @@
+` grave
+' acute
+^ hat
+" ddot
+~ tilde
+= bar
+. dot
+u breve
+v check
+h umlaut
+c cedilla
+, comma
+k ogonek
+o circle
