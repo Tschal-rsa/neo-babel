@@ -741,7 +741,7 @@ impl Babel {
             }
         }).collect();
         format!(
-            "conlang:\t{}\nnatlang:\t{}\npart of speech:\t{}\nmnemonic:\t{}\nUPA:\t{}\ninformation:\t{}\nancestors:\t{:?}",
+            "conlang:\t{}\nnatlang:\t{}\npart of speech:\t{}\nmnemonic:\t{}\nUPA:\t\t{}\ninformation:\t{}\nancestors:\t{:?}",
             word.conlang(),
             word.natlang(),
             pos,
